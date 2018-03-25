@@ -18,7 +18,7 @@ FEATURES:
 
 import sys
 import os
-import pathlib
+from pathlib import Path
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
@@ -118,37 +118,39 @@ class FilesModel(QtCore.QAbstractTableModel):
     
     def set_dirpath(self, dirpath):
         
-        if os.path.isdir(dirpath):
-            if os.access(dirpath, os.R_OK):
-                list_items = os.listdir(dirpath)
-                list_items.sort()
+        path = Path(dirpath)
+        
+        if not path.is_dir():
+            return None
+            
+        if os.access(dirpath, os.R_OK):
+            
+            items = []
+            for i in path.iterdir():
                 
-                items = []
-                for i in list_items:
+                if i.is_file():
+                    stat = i.stat()
+                    size = stat.st_size
+                
+                elif i.is_dir():
+                    nbr_items = len(list(i.iterdir()))
+                    text = 'items' if nbr_items > 1 else 'item'
+                    size = '{} {}'.format(nbr_items, text)
+                
+                else:
+                    size = '--'
                     
-                    path = os.path.join(dirpath, i)
-                    if os.path.isfile(path):
-                        stat = os.stat(path)
-                        size = os.path.getsize(path)
-                    elif os.path.isdir(path):
-                        nbr_items = len(os.listdir(path))
-                        text = 'items' if nbr_items > 1 else 'item'
-                        size = '{} {}'.format(nbr_items, text)
-                    else:
-                        size = '--'
-                        
-                    items.append(
-                        {
-                            'name':i,
-                            'size':size,
-                            
-                        }
-                    )
-                
-                self.set_items(items)
-                
-            else:
-                print('No right access')
+                items.append(
+                    {
+                        'name':i.name,
+                        'size':size,
+                    }
+                )
+            
+            self.set_items(items)
+            
+        else:
+            print('No right access')
     
     def set_items(self, items):
         self.beginResetModel()
