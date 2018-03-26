@@ -19,8 +19,60 @@ FEATURES:
 import sys
 import os
 from pathlib import Path
+from datetime import datetime
 
 from PyQt5 import QtCore, QtGui, QtWidgets
+
+TABLE_COLUMN = {
+    'name':0,
+    'size':1,
+    'modified':2,
+    'permissions':3,
+    'owner':4
+}
+
+def get_items_from_directory(dirpath):
+    path = Path(dirpath)
+
+    if not path.is_dir():
+        return None
+        
+    if not os.access(dirpath, os.R_OK):
+        print('No right access')
+        return None
+        
+    items = []
+    for i in path.iterdir():
+        if not i.exists():
+            continue
+        
+        fullpath = i.absolute().as_posix()
+        stat = i.stat()
+        
+        
+        if i.is_file():
+            size = stat.st_size
+        
+        elif i.is_dir():
+            if os.access(fullpath, os.R_OK):
+                nbr_items = len(list(i.iterdir()))
+                text = 'items' if nbr_items > 1 else 'item'
+                size = '{} {}'.format(nbr_items, text)
+            
+            else:
+                size = '?'
+        
+        items.append(
+            {
+                'name':i.name,
+                'size':size,
+                'modified':stat.st_mtime,
+                'permissions':stat.st_mode,
+                'owner':i.owner()
+            }
+        )
+        
+    return items
 
 
 class FileManager():
@@ -61,7 +113,7 @@ class FilesModel(QtCore.QAbstractTableModel):
     def flags(self, index):
         row = index.row()
         column = index.column()
-        if column == 0:
+        if column == TABLE_COLUMN['name']:
             return (
                     QtCore.Qt.ItemIsEditable |
                     QtCore.Qt.ItemIsEnabled |
@@ -79,15 +131,20 @@ class FilesModel(QtCore.QAbstractTableModel):
     def headerData(self, section, orientation, role):
         if orientation == QtCore.Qt.Horizontal:
             if role == QtCore.Qt.DisplayRole:
-                if section == 0:
+                
+                if section == TABLE_COLUMN['name']:
                     return 'Name'
-                elif section == 1:
+                
+                elif section == TABLE_COLUMN['size']:
                     return 'Size'
-                elif section == 2:
+                
+                elif section == TABLE_COLUMN['modified']:
                     return 'Modified'
-                elif section == 3:
+                
+                elif section == TABLE_COLUMN['permissions']:
                     return 'Permissions'
-                elif section == 4:
+                
+                elif section == TABLE_COLUMN['owner']:
                     return 'Owner'
         
     def data(self, index, role):
@@ -95,21 +152,37 @@ class FilesModel(QtCore.QAbstractTableModel):
         column = index.column()
         
         if role == QtCore.Qt.EditRole:
-            if column == 0:
+            
+            if column == TABLE_COLUMN['name']:
                 return self.items[row]['name']
         
         if role == QtCore.Qt.DisplayRole:
-            if column == 0:
+            
+            if column == TABLE_COLUMN['name']:
                 return self.items[row]['name']
-            elif column == 1:
+            
+            elif column == TABLE_COLUMN['size']:
                 return self.items[row]['size']
+            
+            elif column == TABLE_COLUMN['permissions']:
+                return self.items[row]['permissions']
+            
+            elif column == TABLE_COLUMN['modified']:
+                date = self.items[row]['modified']
+                date = datetime.fromtimestamp(date)
+                date = date.strftime('%Y-%m-%d %H:%M')
+                return date
+            
+            elif column == TABLE_COLUMN['owner']:
+                return self.items[row]['owner']
     
     def setData(self, index, value, role=QtCore.Qt.DisplayRole):
         row = index.row()
         column = index.column()
         
         if role == QtCore.Qt.EditRole:
-            if column == 0:
+            
+            if column == TABLE_COLUMN['name']:
                 self.items[row]['name'] = value
                 self.dataChanged.emit(index, index)
                 return True
@@ -117,40 +190,9 @@ class FilesModel(QtCore.QAbstractTableModel):
         return False
     
     def set_dirpath(self, dirpath):
-        
-        path = Path(dirpath)
-        
-        if not path.is_dir():
-            return None
-            
-        if os.access(dirpath, os.R_OK):
-            
-            items = []
-            for i in path.iterdir():
-                
-                if i.is_file():
-                    stat = i.stat()
-                    size = stat.st_size
-                
-                elif i.is_dir():
-                    nbr_items = len(list(i.iterdir()))
-                    text = 'items' if nbr_items > 1 else 'item'
-                    size = '{} {}'.format(nbr_items, text)
-                
-                else:
-                    size = '--'
-                    
-                items.append(
-                    {
-                        'name':i.name,
-                        'size':size,
-                    }
-                )
-            
+        items = get_items_from_directory(dirpath)
+        if items:
             self.set_items(items)
-            
-        else:
-            print('No right access')
     
     def set_items(self, items):
         self.beginResetModel()
