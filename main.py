@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 
 '''
+TODO
+    - sort folder first and sort other colums
+
 MODES (tab to switch?):
     - normal: navigation arrow + hjkl / action with keys
     - word navigation
@@ -8,7 +11,7 @@ MODES (tab to switch?):
 FEATURES:
     - bookmarks
     - filter
-    - custom actions (right click or toolbar)
+    - custom actions (shortcut "a", right clic, or toolbar)
     - terminal or shell execution
     - copy cut paste
     - preview on last column (text, image, video, sound)
@@ -82,6 +85,8 @@ class FileManager():
         self.files_model.set_dirpath(os.path.expanduser('~'))
         self.files_view = FilesView()
         self.files_view.setModel(self.files_model)
+        self.files_view.setSortingEnabled(True)
+        self.files_view.sortByColumn(0, QtCore.Qt.AscendingOrder)
         self.files_view.show()
         
         #self.path_widget = PathWidget()
@@ -118,9 +123,12 @@ class FilesModel(QtCore.QAbstractTableModel):
                     QtCore.Qt.ItemIsEditable |
                     QtCore.Qt.ItemIsEnabled |
                     QtCore.Qt.ItemIsSelectable
-                )
+            )
         else:
-            return QtCore.Qt.ItemIsEnabled
+            return (
+                    QtCore.Qt.ItemIsEnabled |
+                    QtCore.Qt.ItemIsSelectable
+            )
     
     def rowCount(self, index):
         return len(self.items)
@@ -188,6 +196,18 @@ class FilesModel(QtCore.QAbstractTableModel):
                 return True
             
         return False
+    
+    def sort(self, column, order):
+        self.layoutAboutToBeChanged.emit()
+
+        if column == TABLE_COLUMN['name']:
+            print(self.items)
+            self.items.sort(key=lambda x: x['name'])
+        
+        if order == QtCore.Qt.DescendingOrder:
+            self.items.reverse()
+        
+        self.layoutChanged.emit()
     
     def set_dirpath(self, dirpath):
         items = get_items_from_directory(dirpath)
