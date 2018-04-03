@@ -35,7 +35,14 @@ class TableColumn(IntEnum):
     OWNER = 4
     TYPE = 5
 
-class Item():
+class PathItem():
+    name = None
+    size = None
+    modified = None
+    permissions = None
+    owner = None
+    itemtype = None
+    
     def __init__(self):
         pass
 
@@ -72,30 +79,29 @@ def get_items_from_directory(dirpath):
                 size = '?'
             itemtype = 'folder'
         
-        items.append(
-            {
-                'name':i.name,
-                'size':size,
-                'modified':stat.st_mtime,
-                'permissions':stat.st_mode,
-                'owner':i.owner(),
-                'type':itemtype
-            }
-        )
+        item = PathItem()
+        item.name = i.name
+        item.fullpath = fullpath
+        item.size = size
+        item.modified = stat.st_mtime
+        item.permissions = stat.st_mode
+        item.owner = i.owner()
+        item.itemtype = itemtype
+        items.append(item)
         
     return items
 
-def sort_files(items, folder_first=True, sort_value='name'):
+def sort_files(items, folder_first=True, sort_attr='name'):
     
     if folder_first:
-        folders = list(filter(lambda x: x['type']=='folder', items))
-        folders.sort(key=lambda x: x[sort_value])
-        files = list(filter(lambda x: x['type']!='folder', items))
-        files.sort(key=lambda x: x[sort_value])
+        folders = list(filter(lambda x: x.itemtype=='folder', items))
+        folders.sort(key=lambda x: getattr(x, 'name'))
+        files = list(filter(lambda x: x.itemtype!='folder', items))
+        files.sort(key=lambda x: getattr(x, 'name'))
         items = folders + files
         
     else:
-        items.sort(key=lambda x: x[sort_value])
+        items.sort(key=lambda x: getattr(x, 'name'))
     
     return items
 
@@ -187,30 +193,30 @@ class FilesModel(QtCore.QAbstractTableModel):
         if role == QtCore.Qt.EditRole:
             
             if column == TableColumn.NAME:
-                return self.items[row]['name']
+                return self.items[row].name
         
         if role == QtCore.Qt.DisplayRole:
             
             if column == TableColumn.NAME:
-                return self.items[row]['name']
+                return self.items[row].name
             
             elif column == TableColumn.SIZE:
-                return self.items[row]['size']
+                return self.items[row].size
             
             elif column == TableColumn.PERMISSIONS:
-                return self.items[row]['permissions']
+                return self.items[row].permissions
             
             elif column == TableColumn.MODIFIED:
-                date = self.items[row]['modified']
+                date = self.items[row].modified
                 date = datetime.fromtimestamp(date)
                 date = date.strftime('%Y-%m-%d %H:%M')
                 return date
             
             elif column == TableColumn.OWNER:
-                return self.items[row]['owner']
+                return self.items[row].owner
             
             elif column == TableColumn.TYPE:
-                return self.items[row]['type']
+                return self.items[row].itemtype
     
     def setData(self, index, value, role=QtCore.Qt.DisplayRole):
         row = index.row()
@@ -219,7 +225,7 @@ class FilesModel(QtCore.QAbstractTableModel):
         if role == QtCore.Qt.EditRole:
             
             if column == TableColumn.NAME:
-                self.items[row]['name'] = value
+                self.items[row].name = value
                 self.dataChanged.emit(index, index)
                 return True
             
