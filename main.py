@@ -2,7 +2,8 @@
 
 '''
 TODO
-    - sort folder first and sort other colums
+    - items as class instead of dict?
+    - sort folder first and sort other columns
 
 MODES (tab to switch?):
     - normal: navigation arrow + hjkl / action with keys
@@ -23,16 +24,20 @@ import sys
 import os
 from pathlib import Path
 from datetime import datetime
-
 from PyQt5 import QtCore, QtGui, QtWidgets
+from enum import IntEnum
 
-TABLE_COLUMN = {
-    'name':0,
-    'size':1,
-    'modified':2,
-    'permissions':3,
-    'owner':4
-}
+class TableColumn(IntEnum):
+    NAME = 0
+    SIZE = 1
+    MODIFIED = 2
+    PERMISSIONS = 3
+    OWNER = 4
+    TYPE = 5
+
+class Item():
+    def __init__(self):
+        pass
 
 def get_items_from_directory(dirpath):
     path = Path(dirpath)
@@ -55,6 +60,7 @@ def get_items_from_directory(dirpath):
         
         if i.is_file():
             size = stat.st_size
+            itemtype = 'file'
         
         elif i.is_dir():
             if os.access(fullpath, os.R_OK):
@@ -64,6 +70,7 @@ def get_items_from_directory(dirpath):
             
             else:
                 size = '?'
+            itemtype = 'folder'
         
         items.append(
             {
@@ -71,12 +78,26 @@ def get_items_from_directory(dirpath):
                 'size':size,
                 'modified':stat.st_mtime,
                 'permissions':stat.st_mode,
-                'owner':i.owner()
+                'owner':i.owner(),
+                'type':itemtype
             }
         )
         
     return items
 
+def sort_files(items, folder_first=True, sort_value='name'):
+    
+    if folder_first:
+        folders = list(filter(lambda x: x['type']=='folder', items))
+        folders.sort(key=lambda x: x[sort_value])
+        files = list(filter(lambda x: x['type']!='folder', items))
+        files.sort(key=lambda x: x[sort_value])
+        items = folders + files
+        
+    else:
+        items.sort(key=lambda x: x[sort_value])
+    
+    return items
 
 class FileManager():
     
@@ -86,7 +107,8 @@ class FileManager():
         self.files_view = FilesView()
         self.files_view.setModel(self.files_model)
         self.files_view.setSortingEnabled(True)
-        self.files_view.sortByColumn(0, QtCore.Qt.AscendingOrder)
+        self.files_view.sortByColumn(TableColumn.NAME.value,
+                                     QtCore.Qt.AscendingOrder)
         self.files_view.show()
         
         #self.path_widget = PathWidget()
@@ -118,7 +140,7 @@ class FilesModel(QtCore.QAbstractTableModel):
     def flags(self, index):
         row = index.row()
         column = index.column()
-        if column == TABLE_COLUMN['name']:
+        if column == TableColumn.NAME:
             return (
                     QtCore.Qt.ItemIsEditable |
                     QtCore.Qt.ItemIsEnabled |
@@ -134,26 +156,29 @@ class FilesModel(QtCore.QAbstractTableModel):
         return len(self.items)
     
     def columnCount(self, index):
-        return 5
+        return 6
     
     def headerData(self, section, orientation, role):
         if orientation == QtCore.Qt.Horizontal:
             if role == QtCore.Qt.DisplayRole:
                 
-                if section == TABLE_COLUMN['name']:
+                if section == TableColumn.NAME:
                     return 'Name'
                 
-                elif section == TABLE_COLUMN['size']:
+                elif section == TableColumn.SIZE:
                     return 'Size'
                 
-                elif section == TABLE_COLUMN['modified']:
+                elif section == TableColumn.MODIFIED:
                     return 'Modified'
                 
-                elif section == TABLE_COLUMN['permissions']:
+                elif section == TableColumn.PERMISSIONS:
                     return 'Permissions'
                 
-                elif section == TABLE_COLUMN['owner']:
+                elif section == TableColumn.OWNER:
                     return 'Owner'
+                
+                elif section == TableColumn.TYPE:
+                    return 'Type'
         
     def data(self, index, role):
         row = index.row()
@@ -161,28 +186,31 @@ class FilesModel(QtCore.QAbstractTableModel):
         
         if role == QtCore.Qt.EditRole:
             
-            if column == TABLE_COLUMN['name']:
+            if column == TableColumn.NAME:
                 return self.items[row]['name']
         
         if role == QtCore.Qt.DisplayRole:
             
-            if column == TABLE_COLUMN['name']:
+            if column == TableColumn.NAME:
                 return self.items[row]['name']
             
-            elif column == TABLE_COLUMN['size']:
+            elif column == TableColumn.SIZE:
                 return self.items[row]['size']
             
-            elif column == TABLE_COLUMN['permissions']:
+            elif column == TableColumn.PERMISSIONS:
                 return self.items[row]['permissions']
             
-            elif column == TABLE_COLUMN['modified']:
+            elif column == TableColumn.MODIFIED:
                 date = self.items[row]['modified']
                 date = datetime.fromtimestamp(date)
                 date = date.strftime('%Y-%m-%d %H:%M')
                 return date
             
-            elif column == TABLE_COLUMN['owner']:
+            elif column == TableColumn.OWNER:
                 return self.items[row]['owner']
+            
+            elif column == TableColumn.TYPE:
+                return self.items[row]['type']
     
     def setData(self, index, value, role=QtCore.Qt.DisplayRole):
         row = index.row()
@@ -190,7 +218,7 @@ class FilesModel(QtCore.QAbstractTableModel):
         
         if role == QtCore.Qt.EditRole:
             
-            if column == TABLE_COLUMN['name']:
+            if column == TableColumn.NAME:
                 self.items[row]['name'] = value
                 self.dataChanged.emit(index, index)
                 return True
@@ -199,10 +227,11 @@ class FilesModel(QtCore.QAbstractTableModel):
     
     def sort(self, column, order):
         self.layoutAboutToBeChanged.emit()
-
-        if column == TABLE_COLUMN['name']:
-            print(self.items)
-            self.items.sort(key=lambda x: x['name'])
+        print(type(column))
+        if column == TableColumn.NAME:
+            self.items = sort_files(self.items)
+        #else:
+            #items.sort(key=lambda x: x['name'])
         
         if order == QtCore.Qt.DescendingOrder:
             self.items.reverse()
