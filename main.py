@@ -108,6 +108,7 @@ def sort_files(items, folder_first=True, sort_attr='name'):
 class FileManager():
     
     def __init__(self):
+        
         self.files_model = FilesModel()
         self.files_model.set_dirpath(os.path.expanduser('~'))
         self.files_view = FilesView()
@@ -115,17 +116,37 @@ class FileManager():
         self.files_view.setSortingEnabled(True)
         self.files_view.sortByColumn(TableColumn.NAME.value,
                                      QtCore.Qt.AscendingOrder)
-        self.files_view.show()
         
-        #self.path_widget = PathWidget()
-        #self.path_widget.show()
-        #self.path_widget.path_edit.setText(os.path.expanduser('~'))
-        #self.path_widget.path_edit.editingFinished.connect(self.changed_path)
+        self.path_widget = PathWidget()
+        self.path_widget.path_edit.setText(os.path.expanduser('~'))
+        self.path_widget.path_edit.editingFinished.connect(self.changed_path)
+        
+        self.main_widget = MainWidget()
+        self.main_widget.path_widget = self.path_widget
+        self.main_widget.files_widget = self.files_view
+        self.main_widget.init_ui()
+        self.main_widget.show()
     
     def changed_path(self):
         path = self.path_widget.path_edit.text()
         self.files_model.set_dirpath(path)
 
+
+class MainWidget(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
+        self.path_widget = None
+        self.files_widget = None
+        
+    def init_ui(self):
+        self.resize(750, 450)
+        self.setWindowTitle('File Manager')
+        
+        layout = QtWidgets.QVBoxLayout()
+        layout.addWidget(self.path_widget)
+        layout.addWidget(self.files_widget)
+        self.setLayout(layout)
+        
 
 class PathWidget(QtWidgets.QWidget):
     def __init__(self):
