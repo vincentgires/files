@@ -26,6 +26,7 @@ from pathlib import Path
 from datetime import datetime
 from PyQt5 import QtCore, QtGui, QtWidgets
 from enum import IntEnum
+from pwd import getpwuid
 
 class TableColumn(IntEnum):
     NAME = 0
@@ -47,9 +48,8 @@ class PathItem():
         pass
 
 def get_items_from_directory(dirpath):
-    path = Path(dirpath)
 
-    if not path.is_dir():
+    if not os.path.isdir(dirpath):
         return None
         
     if not os.access(dirpath, os.R_OK):
@@ -57,21 +57,21 @@ def get_items_from_directory(dirpath):
         return None
         
     items = []
-    for i in path.iterdir():
-        if not i.exists():
+    for i in os.listdir(dirpath):
+        fullpath = os.path.join(dirpath, i)
+        
+        if not os.path.exists(fullpath):
             continue
         
-        fullpath = i.absolute().as_posix()
-        stat = i.stat()
+        stat = os.stat(fullpath)
         
-        
-        if i.is_file():
+        if os.path.isfile(fullpath):
             size = stat.st_size
             itemtype = 'file'
         
-        elif i.is_dir():
+        elif os.path.isdir(fullpath):
             if os.access(fullpath, os.R_OK):
-                nbr_items = len(list(i.iterdir()))
+                nbr_items = len(os.listdir(fullpath))
                 text = 'items' if nbr_items > 1 else 'item'
                 size = '{} {}'.format(nbr_items, text)
             
@@ -80,12 +80,12 @@ def get_items_from_directory(dirpath):
             itemtype = 'folder'
         
         item = PathItem()
-        item.name = i.name
+        item.name = i
         item.fullpath = fullpath
         item.size = size
         item.modified = stat.st_mtime
         item.permissions = stat.st_mode
-        item.owner = i.owner()
+        item.owner = getpwuid(stat.st_uid).pw_name
         item.itemtype = itemtype
         items.append(item)
         
