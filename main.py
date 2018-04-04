@@ -181,7 +181,7 @@ class FilesModel(QtCore.QAbstractTableModel):
         return len(self.items)
     
     def columnCount(self, index):
-        return 6
+        return len(TableColumn)
     
     def headerData(self, section, orientation, role):
         if orientation == QtCore.Qt.Horizontal:
