@@ -2,8 +2,6 @@
 
 '''
 TODO
-    - items as class instead of dict?
-    - sort folder first and sort other columns
 
 MODES (tab to switch?):
     - normal: navigation arrow + hjkl / action with keys
@@ -34,7 +32,7 @@ class TableColumn(IntEnum):
     MODIFIED = 2
     PERMISSIONS = 3
     OWNER = 4
-    TYPE = 5
+    ITEMTYPE = 5
 
 class PathItem():
     name = None
@@ -95,13 +93,13 @@ def sort_files(items, folder_first=True, sort_attr='name'):
     
     if folder_first:
         folders = list(filter(lambda x: x.itemtype=='folder', items))
-        folders.sort(key=lambda x: getattr(x, 'name'))
+        folders.sort(key=lambda x: getattr(x, sort_attr))
         files = list(filter(lambda x: x.itemtype!='folder', items))
-        files.sort(key=lambda x: getattr(x, 'name'))
+        files.sort(key=lambda x: getattr(x, sort_attr))
         items = folders + files
         
     else:
-        items.sort(key=lambda x: getattr(x, 'name'))
+        items.sort(key=lambda x: getattr(x, sort_attr))
     
     return items
 
@@ -204,7 +202,7 @@ class FilesModel(QtCore.QAbstractTableModel):
                 elif section == TableColumn.OWNER:
                     return 'Owner'
                 
-                elif section == TableColumn.TYPE:
+                elif section == TableColumn.ITEMTYPE:
                     return 'Type'
         
     def data(self, index, role):
@@ -236,7 +234,7 @@ class FilesModel(QtCore.QAbstractTableModel):
             elif column == TableColumn.OWNER:
                 return self.items[row].owner
             
-            elif column == TableColumn.TYPE:
+            elif column == TableColumn.ITEMTYPE:
                 return self.items[row].itemtype
     
     def setData(self, index, value, role=QtCore.Qt.DisplayRole):
@@ -254,11 +252,10 @@ class FilesModel(QtCore.QAbstractTableModel):
     
     def sort(self, column, order):
         self.layoutAboutToBeChanged.emit()
-        print(type(column))
-        if column == TableColumn.NAME:
-            self.items = sort_files(self.items)
-        #else:
-            #items.sort(key=lambda x: x['name'])
+        
+        sort_attr = TableColumn(column).name.lower()
+        self.items = sort_files(
+            self.items, sort_attr=sort_attr)
         
         if order == QtCore.Qt.DescendingOrder:
             self.items.reverse()
