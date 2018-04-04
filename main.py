@@ -34,16 +34,43 @@ class TableColumn(IntEnum):
     OWNER = 4
     ITEMTYPE = 5
 
-class PathItem():
+class DirItem():
+    
     name = None
-    size = None
-    modified = None
-    permissions = None
-    owner = None
+    path = None
     itemtype = None
     
-    def __init__(self):
-        pass
+    def get_owner(self):
+        stat = os.stat(self.path)
+        owner = getpwuid(stat.st_uid).pw_name
+        return owner
+    
+    def get_modified_date(self):
+        stat = os.stat(self.path)
+        mtime = stat.st_mtime
+        date = datetime.fromtimestamp(mtime)
+        return date.strftime('%Y-%m-%d %H:%M')
+    
+    def get_permissions(self):
+        stat = os.stat(self.path)
+        st_mode = stat.st_mode
+        return st_mode
+    
+    def get_size(self):
+        stat = os.stat(self.path)
+        
+        if os.path.isfile(self.path):
+            size = stat.st_size
+        
+        elif os.path.isdir(self.path):
+            if os.access(self.path, os.R_OK):
+                nbr_items = len(list(os.scandir(self.path)))
+                text = 'items' if nbr_items > 1 else 'item'
+                size = '{} {}'.format(nbr_items, text)
+            else:
+                size = '?'
+        
+        return size
 
 def get_items_from_directory(dirpath):
 
@@ -55,35 +82,21 @@ def get_items_from_directory(dirpath):
         return None
         
     items = []
-    for i in os.listdir(dirpath):
-        fullpath = os.path.join(dirpath, i)
+    for entry in os.scandir(dirpath):
         
-        if not os.path.exists(fullpath):
+        if not os.path.exists(entry.path):
             continue
         
-        stat = os.stat(fullpath)
+        if entry.is_file():
+            itemtype = 'FILE'
+        elif entry.is_dir():
+            itemtype = 'FOLDER'
+        else:
+            continue
         
-        if os.path.isfile(fullpath):
-            size = stat.st_size
-            itemtype = 'file'
-        
-        elif os.path.isdir(fullpath):
-            if os.access(fullpath, os.R_OK):
-                nbr_items = len(os.listdir(fullpath))
-                text = 'items' if nbr_items > 1 else 'item'
-                size = '{} {}'.format(nbr_items, text)
-            
-            else:
-                size = '?'
-            itemtype = 'folder'
-        
-        item = PathItem()
-        item.name = i
-        item.fullpath = fullpath
-        item.size = size
-        item.modified = stat.st_mtime
-        item.permissions = stat.st_mode
-        item.owner = getpwuid(stat.st_uid).pw_name
+        item = DirItem()
+        item.name = entry.name
+        item.path = entry.path
         item.itemtype = itemtype
         items.append(item)
         
@@ -92,9 +105,9 @@ def get_items_from_directory(dirpath):
 def sort_files(items, folder_first=True, sort_attr='name'):
     
     if folder_first:
-        folders = list(filter(lambda x: x.itemtype=='folder', items))
+        folders = list(filter(lambda x: x.itemtype=='FOLDER', items))
         folders.sort(key=lambda x: getattr(x, sort_attr))
-        files = list(filter(lambda x: x.itemtype!='folder', items))
+        files = list(filter(lambda x: x.itemtype!='FOLDER', items))
         files.sort(key=lambda x: getattr(x, sort_attr))
         items = folders + files
         
@@ -220,22 +233,21 @@ class FilesModel(QtCore.QAbstractTableModel):
                 return self.items[row].name
             
             elif column == TableColumn.SIZE:
-                return self.items[row].size
+                #return self.items[row].size
+                return self.items[row].get_size()
             
             elif column == TableColumn.PERMISSIONS:
-                return self.items[row].permissions
+                return self.items[row].get_permissions()
             
             elif column == TableColumn.MODIFIED:
-                date = self.items[row].modified
-                date = datetime.fromtimestamp(date)
-                date = date.strftime('%Y-%m-%d %H:%M')
+                date = self.items[row].get_modified_date()
                 return date
             
             elif column == TableColumn.OWNER:
-                return self.items[row].owner
+                return self.items[row].get_owner()
             
             elif column == TableColumn.ITEMTYPE:
-                return self.items[row].itemtype
+                return self.items[row].itemtype.capitalize()
     
     def setData(self, index, value, role=QtCore.Qt.DisplayRole):
         row = index.row()
@@ -253,12 +265,12 @@ class FilesModel(QtCore.QAbstractTableModel):
     def sort(self, column, order):
         self.layoutAboutToBeChanged.emit()
         
-        sort_attr = TableColumn(column).name.lower()
-        self.items = sort_files(
-            self.items, sort_attr=sort_attr)
+        #sort_attr = TableColumn(column).name.lower()
+        #self.items = sort_files(
+            #self.items, sort_attr=sort_attr)
         
-        if order == QtCore.Qt.DescendingOrder:
-            self.items.reverse()
+        #if order == QtCore.Qt.DescendingOrder:
+            #self.items.reverse()
         
         self.layoutChanged.emit()
     
