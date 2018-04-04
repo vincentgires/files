@@ -40,6 +40,22 @@ class DirItem():
     path = None
     itemtype = None
     
+    @property
+    def size(self):
+        return self.get_size()
+    
+    @property
+    def modified(self):
+        return self.get_modified_date()
+    
+    @property
+    def permissions(self):
+        return self.get_permissions()
+    
+    @property
+    def owner(self):
+        return self.get_owner()
+    
     def get_owner(self):
         stat = os.stat(self.path)
         owner = getpwuid(stat.st_uid).pw_name
@@ -102,7 +118,7 @@ def get_items_from_directory(dirpath):
         
     return items
 
-def sort_files(items, folder_first=True, sort_attr='name'):
+def sort_diritems(items, folder_first=True, sort_attr='name'):
     
     if folder_first:
         folders = list(filter(lambda x: x.itemtype=='FOLDER', items))
@@ -130,7 +146,7 @@ class FileManager():
         
         self.path_widget = PathWidget()
         self.path_widget.path_edit.setText(os.path.expanduser('~'))
-        self.path_widget.path_edit.editingFinished.connect(self.changed_path)
+        self.path_widget.path_edit.returnPressed.connect(self.changed_path)
         
         self.main_widget = MainWidget()
         self.main_widget.path_widget = self.path_widget
@@ -199,24 +215,8 @@ class FilesModel(QtCore.QAbstractTableModel):
     def headerData(self, section, orientation, role):
         if orientation == QtCore.Qt.Horizontal:
             if role == QtCore.Qt.DisplayRole:
-                
-                if section == TableColumn.NAME:
-                    return 'Name'
-                
-                elif section == TableColumn.SIZE:
-                    return 'Size'
-                
-                elif section == TableColumn.MODIFIED:
-                    return 'Modified'
-                
-                elif section == TableColumn.PERMISSIONS:
-                    return 'Permissions'
-                
-                elif section == TableColumn.OWNER:
-                    return 'Owner'
-                
-                elif section == TableColumn.ITEMTYPE:
-                    return 'Type'
+                value = TableColumn(section).name.capitalize()
+                return value
         
     def data(self, index, role):
         row = index.row()
@@ -229,11 +229,19 @@ class FilesModel(QtCore.QAbstractTableModel):
         
         if role == QtCore.Qt.DisplayRole:
             
+            # --> automatic value
+            '''
+            enum_item = TableColumn(column)
+            attr = enum_item.name.lower()
+            value = getattr(self.items[row], attr)
+            return value
+            '''
+            # <--
+            
             if column == TableColumn.NAME:
                 return self.items[row].name
             
             elif column == TableColumn.SIZE:
-                #return self.items[row].size
                 return self.items[row].get_size()
             
             elif column == TableColumn.PERMISSIONS:
@@ -265,12 +273,12 @@ class FilesModel(QtCore.QAbstractTableModel):
     def sort(self, column, order):
         self.layoutAboutToBeChanged.emit()
         
-        #sort_attr = TableColumn(column).name.lower()
-        #self.items = sort_files(
-            #self.items, sort_attr=sort_attr)
+        sort_attr = TableColumn(column).name.lower()
+        self.items = sort_diritems(
+            self.items, sort_attr=sort_attr)
         
-        #if order == QtCore.Qt.DescendingOrder:
-            #self.items.reverse()
+        if order == QtCore.Qt.DescendingOrder:
+            self.items.reverse()
         
         self.layoutChanged.emit()
     
