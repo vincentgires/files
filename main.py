@@ -159,7 +159,7 @@ class FileManager():
         self.files_model.set_dirpath(path)
 
 
-class MainWidget(QtWidgets.QWidget):
+class MainWidget(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
         self.path_widget = None
@@ -169,10 +169,13 @@ class MainWidget(QtWidgets.QWidget):
         self.resize(750, 450)
         self.setWindowTitle('File Manager')
         
+        central = QtWidgets.QWidget()
         layout = QtWidgets.QVBoxLayout()
         layout.addWidget(self.path_widget)
         layout.addWidget(self.files_widget)
-        self.setLayout(layout)
+        central.setLayout(layout)
+        
+        self.setCentralWidget(central)
         
 
 class PathWidget(QtWidgets.QWidget):
